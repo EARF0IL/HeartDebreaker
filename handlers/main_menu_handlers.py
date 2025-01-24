@@ -1,14 +1,18 @@
+import aiofiles
+from aiocsv import AsyncDictReader
+from random import choice
+
 from aiogram import Router, F
 from aiogram.filters import Command, StateFilter
-from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery, Update
+from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery, Update, Poll, MessageEntity
 from aiogram.fsm.context import FSMContext
 
 from config.text.register import *
 from config.text.dynamic import DYNAMIC_GREET, YET_ANOTHER_BLITZ, FIRST_BLITZ
 from config.text.llm_dialog import LLM_GREET
-from config.text.scedules import ONE_TIME_GREET
+from config.text.scedules import ONE_TIME_GREET, REGULAR_GREET, IS_REGULAR
 from config.text import MAIN, HELP_MESSAGE
-from states import MainMenu, Dynamic, LLMDialog, OneTimeSchedule
+from states import MainMenu, Dynamic, LLMDialog, OneTimeSchedule, RegularSchedule
 from keyboards import create_yes_no_kb_inline, create_yes_no_kb
 from keyboards.main_menu import *
 from keyboards.register import *
@@ -216,8 +220,46 @@ async def onetime_schedule_button(message: Message, state: FSMContext):
         text=ONE_TIME_GREET,
         reply_markup=ReplyKeyboardRemove()
     )
-
+    await state.update_data({'user_id': message.from_user.id})
     await state.set_state(OneTimeSchedule.set_name)
+    
+
+@main_menu_router.message(F.text == 'Напоминание лекарственное', StateFilter(None))
+async def onetime_schedule_button(message: Message, state: FSMContext):
+    await message.answer(
+        text=REGULAR_GREET,
+        reply_markup=ReplyKeyboardRemove()
+    )
+    await message.answer(
+        text=IS_REGULAR,
+        reply_markup=create_yes_no_kb()
+    )
+    await state.update_data({'user_id': message.from_user.id})
+    await state.set_state(RegularSchedule.is_regular)
+    
+
+@main_menu_router.message(F.text == 'Викторина', StateFilter(None))
+async def quiz_button(message: Message, state: FSMContext):
+    async with aiofiles.open('Cardio_quiz.csv', mode='r', encoding='utf-8', newline='') as file:
+        reader = AsyncDictReader(file, delimiter=';')
+        question = choice([row async for row in reader])
+    # print(question)
+    await message.answer_poll(
+        type='quiz',
+        question=question['question'],
+        options=[
+            question['answer_0'],
+            question['answer_1'],
+            question['answer_2'],
+            question['answer_3']
+        ],
+        correct_option_id=question['index_right']
+    )
+    await message.answer(
+        text=MAIN,
+        reply_markup=create_main_menu_kb(),
+        show_alert=True
+    )
 
 
 @main_menu_router.callback_query()
@@ -249,4 +291,3 @@ async def error_handler(update: Update, state: FSMContext):
                 reply_markup=create_main_menu_kb(),
                 show_alert=True
             )
-

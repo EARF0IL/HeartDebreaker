@@ -81,6 +81,7 @@ class OneTimeSchedule(Base):
     __tablename__ = 'one_time_schedules'
 
     user_id: Mapped[int] = mapped_column(ForeignKey('users.user_id'))
+    name: Mapped[str]
     description: Mapped[str | None]
     time: Mapped[datetime]
     
@@ -96,6 +97,7 @@ class RegularSchedule(Base):
     __tablename__ = 'regular_schedules'
 
     user_id: Mapped[int] = mapped_column(ForeignKey('users.user_id'))
+    name: Mapped[str]
     description: Mapped[str | None]
     time: Mapped[time]
     

@@ -1,6 +1,7 @@
 from aiogram import Router, F
 from aiogram.types import Message, Update, CallbackQuery, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from filters import FSMTypeFilter, MultypleStateFilter
 from states import LLMDialog, Blitz
@@ -11,9 +12,10 @@ from keyboards.main_menu import create_main_menu_kb
 from keyboards import create_yes_no_kb
 from keyboards.blitz import create_continue_kb_inline
 from config.enums import *
-from database.utils import check_quiz_exist
+from database.models import User
+from database.utils import check_quiz_exist, get_user
 from config.text import LLM_SYSTEM_MESSAGE
-from LLM_io import ask_llm
+from LLM_io import ask_llm, get_system_prompt
 
 llm_router = Router()
 llm_router.message.filter(FSMTypeFilter(LLMDialog))
@@ -84,9 +86,9 @@ async def after_blitz(cb_query: CallbackQuery, state: FSMContext):
     await cb_query.message.edit_text(
         text=ASK,
     )
-    await cb_query.message.edit_reply_markup(
-        reply_markup=ReplyKeyboardRemove()
-    )
+    # await cb_query.message.edit_reply_markup(
+    #     reply_markup=ReplyKeyboardRemove()
+    # )
     await state.set_state(LLMDialog.ask)
     
 
@@ -95,14 +97,31 @@ async def after_blitz(cb_query: CallbackQuery, state: FSMContext):
 async def ask(message: Message, state: FSMContext):
     data = await state.get_data()
     if 'message_history' not in data:
-        await state.update_data({'message_history': [{'role': 'system', 'text': LLM_SYSTEM_MESSAGE}]})
+        user_model: User = await get_user(message.from_user.id)
+        system_prompt = await get_system_prompt(dict(name=user_model.name,
+                                                gender=user_model.gender.value,
+                                                age=user_model.age,
+                                                heartattacks=user_model.heart_attacks,
+                                                blood_pressure=user_model.blood_pressure.value,
+                                                is_smoked=('да' if user_model.is_smoking else 'нет'),
+                                                sport_regularity=user_model.sport_regularity.value,
+                                                feeling=user_model.LastQuiz.feeling.value,
+                                                symptoms=user_model.LastQuiz.symptoms.value,
+                                                current_blood_pressure=user_model.LastQuiz.blood_pressure.value,
+                                                current_pulse=user_model.LastQuiz.pulse.value,
+                                                phys_activity=user_model.LastQuiz.sport.value,
+                                                food=user_model.LastQuiz.food.value,
+                                                emotions=user_model.LastQuiz.emotions.value,
+                                                critical_state=user_model.LastQuiz.criticals.value))
+        # print(system_prompt)
+        await state.update_data({'message_history': [SystemMessage(content=system_prompt.content)]})
         data = await state.get_data()
     message_history: list[dict[str, str]] = data['message_history']
-    message_history.append({'role': 'user', 'text': message.text})
+    message_history.append(HumanMessage(content=message.text))
     llm_answer = await ask_llm(message_history)
-    message_history.append(llm_answer)
+    message_history.append(AIMessage(content=llm_answer))
     await message.answer(
-        text=llm_answer['text']
+        text=llm_answer
     )
     await message.answer(
         text=ANOTHER_QUESTIONS,

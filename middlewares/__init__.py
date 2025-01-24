@@ -1,8 +1,16 @@
+import logging
 from aiogram import BaseMiddleware
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
+from datetime import datetime
 
 from database.utils import check_user_exist
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+        level=logging.INFO,
+        format=u'%(filename)s:%(lineno)d #%(levelname)-8s [%(asctime)s] - %(name)s - %(message)s')
+
 
 
 class RegistrationMiddleware(BaseMiddleware):
@@ -59,4 +67,15 @@ class MainMenuMiddleware(BaseMiddleware):
                     return
                 return await handler(event, data)
 
+        return await handler(event, data)
+    
+    
+class LogToDatabaseMiddleware(BaseMiddleware):
+    async def __call__(self, handler, event, data):
+        user_id = event.from_user.id
+        username = event.from_user.username
+        command = event.text
+        log_time = datetime.now()
+        log_entry = f"{log_time} | User ID: {user_id} | Username: {username} | Command: {command}"
+        logger.info(log_entry)
         return await handler(event, data)

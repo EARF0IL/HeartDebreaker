@@ -1,8 +1,8 @@
 from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql import select, update
+from sqlalchemy.sql import select, update, delete
 
-from database.models import User, LastQuiz
+from database.models import User, LastQuiz, OneTimeSchedule, RegularSchedule
 from database import async_session_maker
 
 
@@ -77,3 +77,52 @@ async def check_quiz_exist(user_id: int, session: AsyncSession):
 async def get_last_quiz(user_id: int, session: AsyncSession):
     result = await session.execute(select(LastQuiz).where(LastQuiz.user_id == user_id))
     return result.fetchone()[0]
+
+
+@connection
+async def add_one_time_schedule(data: dict[str, Any], session: AsyncSession):
+    schedule_info = OneTimeSchedule(**data)
+    session.add(schedule_info)
+    await session.commit()
+    
+
+@connection
+async def get_one_time_schedule(user_id: int, name: str, session: AsyncSession):
+    result = await session.execute(select(OneTimeSchedule).where(OneTimeSchedule.user_id == user_id).where(OneTimeSchedule.name == name))
+    return result.fetchone()[0]
+
+
+@connection
+async def remove_one_time_schedule(user_id: int, name: str, session: AsyncSession):
+    removable_schedule = await get_one_time_schedule(user_id, name)
+    await session.delete(removable_schedule)
+    await session.commit()
+
+
+@connection
+async def add_regular_schedule(data: dict[str, Any], session: AsyncSession):
+    schedule_info = RegularSchedule(**data)
+    session.add(schedule_info)
+    await session.commit()
+
+
+@connection
+async def get_regular_schedule(user_id: int, name: str, session: AsyncSession):
+    result = await session.execute(select(RegularSchedule).where(RegularSchedule.user_id == user_id).where(RegularSchedule.name == name))
+    return result.fetchone()[0]
+
+
+@connection
+async def remove_regular_schedule(user_id: int, name: str, session: AsyncSession):
+    removable_schedule = await get_regular_schedule(user_id, name)
+    try:
+        await session.delete(removable_schedule)
+        await session.commit()
+    except Exception:
+        pass
+
+
+@connection
+async def get_user(user_id: int, session: AsyncSession):
+    result = await session.execute(select(User).where(User.user_id == user_id))
+    return result.unique().scalars().all()[0]

@@ -8,7 +8,6 @@ from config.text.blitz import *
 from keyboards.blitz import *
 from keyboards import create_yes_no_kb_inline
 from database.utils import check_quiz_exist, update_quiz, add_quiz, get_last_quiz
-from database.models import LastQuiz
 
 blitz_router = Router()
 blitz_router.message.filter(FSMTypeFilter(Blitz))

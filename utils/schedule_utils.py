@@ -1,15 +1,24 @@
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
-from database.models import OneTimeSchedule
+from database.models import OneTimeSchedule, RegularSchedule
+from database.utils import get_one_time_schedule, remove_one_time_schedule
+from database.utils import get_regular_schedule, remove_regular_schedule
 from bot import bot
+from keyboards.schedule import create_remove_job_kb_inline
 
-scheduler = AsyncIOScheduler(timezone='Europe/Moscow')
 
-async def one_time_notify(user_id, time):
-    notify_info: OneTimeSchedule = await get_onetime_schedule(user_id, time)
+async def one_time_notify(user_id, name):
+    notify_info: OneTimeSchedule = await get_one_time_schedule(user_id, name)
     await bot.send_message(
         chat_id=user_id,
-        text=notify_info.description
+        text=f'*{notify_info.name}*\n{notify_info.description}'
     )
-    scheduler.remove_job((user_id + notify_info.time.strftime('%d.%m.%Y %H.%M')))
+    await remove_one_time_schedule(user_id, name)
     
+async def regular_notify(user_id, name):
+    notify_info: RegularSchedule = await get_regular_schedule(user_id, name)
+    await bot.send_message(
+        chat_id=user_id,
+        text=f'*{notify_info.name}*\n{notify_info.description}',
+        reply_markup=create_remove_job_kb_inline(name)
+    )
+    # scheduler.remove_job(id=f"{user_id}+{name}")
+    # await remove_one_time_schedule(user_id, name)
